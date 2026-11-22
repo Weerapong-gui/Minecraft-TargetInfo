@@ -35,12 +35,17 @@ public final class TargetInfo extends JavaPlugin implements Listener {
     private int lingerTicks;
     private boolean players;
     private int tick;
+    /** DataStack hides its "xN" stack labels beyond this many blocks per viewer; 0 = always shown. */
+    private double stackLabelRange;
+    private static final org.bukkit.NamespacedKey STACK_LABEL = new org.bukkit.NamespacedKey("datastack", "label");
 
     @Override public void onEnable() {
         saveDefaultConfig();
         range = Math.max(4, getConfig().getDouble("range", 24));
         lingerTicks = Math.max(0, getConfig().getInt("linger-ticks", 30));
         players = getConfig().getBoolean("show-players", true);
+        var ds = getServer().getPluginManager().getPlugin("DataStack");
+        stackLabelRange = ds == null ? 0 : Math.max(0, ds.getConfig().getDouble("label-range", 10));
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getScheduler().runTaskTimer(this, this::tick, 1, 1);
     }
@@ -79,7 +84,7 @@ public final class TargetInfo extends JavaPlugin implements Listener {
                 views.remove(p.getUniqueId());
                 continue;
             }
-            update(v.display(), le);
+            update(p, v.display(), le);
         }
         // views of players who left without a quit event (reload) are cleared here
         for (Iterator<Map.Entry<UUID, View>> it = views.entrySet().iterator(); it.hasNext(); ) {
@@ -99,7 +104,7 @@ public final class TargetInfo extends JavaPlugin implements Listener {
     }
 
     private TextDisplay spawn(Player viewer, LivingEntity target) {
-        TextDisplay d = target.getWorld().spawn(at(target), TextDisplay.class, t -> {
+        TextDisplay d = target.getWorld().spawn(at(viewer, target), TextDisplay.class, t -> {
             t.setVisibleByDefault(false); // set before it enters the world, so nobody else ever sees it
             t.setPersistent(false);
             t.setBillboard(Display.Billboard.CENTER);
@@ -112,13 +117,23 @@ public final class TargetInfo extends JavaPlugin implements Listener {
         return d;
     }
 
-    private static Location at(LivingEntity target) {
-        boolean nameTag = target instanceof Player || (target.customName() != null && target.isCustomNameVisible());
+    /** Whether viewer currently sees a name tag over target, so the numbers go above it. */
+    private boolean nameTagShown(Player viewer, LivingEntity target) {
+        if (target instanceof Player) return true;
+        if (target.customName() == null || !target.isCustomNameVisible()) return false;
+        if (stackLabelRange > 0 && target.getPersistentDataContainer().has(STACK_LABEL)) {
+            return viewer.getLocation().distanceSquared(target.getLocation()) <= stackLabelRange * stackLabelRange;
+        }
+        return true;
+    }
+
+    private Location at(Player viewer, LivingEntity target) {
+        boolean nameTag = nameTagShown(viewer, target);
         return target.getLocation().add(0, Fmt.lift(target.getHeight(), nameTag), 0).setDirection(new org.bukkit.util.Vector(0, 0, 1));
     }
 
-    private void update(TextDisplay d, LivingEntity target) {
-        d.teleport(at(target));
+    private void update(Player viewer, TextDisplay d, LivingEntity target) {
+        d.teleport(at(viewer, target));
         Component now = text(target);
         if (!now.equals(d.text())) d.text(now);
     }

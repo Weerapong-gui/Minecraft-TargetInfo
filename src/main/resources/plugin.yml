@@ -2,4 +2,5 @@ name: TargetInfo
 version: 1.0.0
 main: th.park.targetinfo.TargetInfo
 api-version: '26.3'
+softdepend: [DataStack]
 description: Shows health and armor above the mob or player you are aiming at, only to you
