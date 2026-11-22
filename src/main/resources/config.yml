@@ -1,0 +1,6 @@
+# How far away (blocks) a mob or player can be and still show its health when aimed at.
+range: 24
+# Keep showing for this many ticks (20 = 1 second) after you look away.
+linger-ticks: 30
+# Also show other players' health and armor.
+show-players: true
