@@ -118,13 +118,32 @@ public final class TargetInfo extends JavaPlugin implements Listener {
     }
 
     /** Whether viewer currently sees a name tag over target, so the numbers go above it. */
+    /**
+     * Whether viewer currently sees a name over target, so the numbers go above it. Like the client:
+     * an always-visible name (a DataStack label only within its label range), or any custom name
+     * (e.g. from a name tag) while the target is under the crosshair within the viewer's reach.
+     */
     private boolean nameTagShown(Player viewer, LivingEntity target) {
         if (target instanceof Player) return true;
-        if (target.customName() == null || !target.isCustomNameVisible()) return false;
+        if (target.customName() == null) return false;
+        if (withinReach(viewer, target)) return true;
+        if (!target.isCustomNameVisible()) return false;
         if (stackLabelRange > 0 && target.getPersistentDataContainer().has(STACK_LABEL)) {
             return viewer.getLocation().distanceSquared(target.getLocation()) <= stackLabelRange * stackLabelRange;
         }
         return true;
+    }
+
+    /** Eye to the nearest point of the target's hitbox, against the viewer's entity interaction range. */
+    private static boolean withinReach(Player viewer, LivingEntity target) {
+        var attr = viewer.getAttribute(Attribute.ENTITY_INTERACTION_RANGE);
+        double reach = attr != null ? attr.getValue() : 3.0;
+        var eye = viewer.getEyeLocation().toVector();
+        var box = target.getBoundingBox();
+        double dx = Math.max(Math.max(box.getMinX() - eye.getX(), 0), eye.getX() - box.getMaxX());
+        double dy = Math.max(Math.max(box.getMinY() - eye.getY(), 0), eye.getY() - box.getMaxY());
+        double dz = Math.max(Math.max(box.getMinZ() - eye.getZ(), 0), eye.getZ() - box.getMaxZ());
+        return dx * dx + dy * dy + dz * dz <= reach * reach;
     }
 
     private Location at(Player viewer, LivingEntity target) {
