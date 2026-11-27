@@ -20,3 +20,7 @@ show-players: true # also other players
 ```sh
 ./build.sh /path/to/paper-server-dir   # -> build/TargetInfo.jar
 ```
+
+## License
+
+[MIT](LICENSE)
